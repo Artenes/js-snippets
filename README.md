@@ -1,0 +1,5 @@
+- swap to database
+- add https://quilljs.com/
+- add bootstrap
+- add google login
+- deploy to heroku

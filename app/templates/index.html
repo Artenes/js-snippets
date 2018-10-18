@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Vue js</title>
+	<style>
+
+	#app {
+		display: flex;
+		justify-content: center;
+		flex-direction: column;
+		padding: 0 30% 0 30%;
+	}
+
+	input {
+		display: block;
+		margin-bottom: 2em;
+		margin-top: 5em;
+	}
+
+	.result {
+		border: solid 1px grey;
+		padding: 3em;
+		margin-bottom: 2em;
+	}
+
+	textarea {
+		display: block;
+	}
+
+	.content-editing textarea {
+		width: 100%;
+		height: 100%;
+	}	
+
+	</style>
+</head>
+<body>
+
+	<div id="app">
+		<input type="text" v-model="query">
+
+		<div v-for="(result, index) in results">
+			<result :post="result" :index="index" @on-delete="onDeletePost"></result>
+		</div>
+
+		<textarea cols="30" rows="5" v-model="newOne"></textarea>
+		<button v-on:click="add">Add</button>
+	</div>
+
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+
+	<script>
+
+	var api = {
+
+		mockedResults: [
+		{id: 1, content: "Reachel is hot"},
+		{id: 2, content: "Reachel is cute"},
+		{id: 3, content: "Reachel is bald"},
+		{id: 4, content: "Reachel is virgin"},
+		],
+
+		search: function (query) {
+			return axios.get('/posts?q='+query);
+		},
+
+		add: function (newPost) {
+			return axios.post('/posts', newPost);
+		},
+
+		update: function (post) {
+			return axios.put('/post/'+post.id, post);
+		},
+
+		delete: function(post) {
+			return axios.delete('/post/'+post.id);
+		}
+
+	};
+
+	Vue.component('result', {
+
+		props: ['post', 'index'],
+
+		data() {
+			return {
+				editing: false,
+				editedContent: ""
+			};
+		},
+
+		methods: {
+
+			edit: function () {
+				this.editedContent = this.post.content;
+				this.editing = true;
+			},
+			cancel: function () {
+				this.editedContent = "";
+				this.editing = false;
+			},
+			save: function () {
+				this.post.content = this.editedContent;
+				this.editedContent = "";
+				this.editing = false;
+				api.update(this.post).then(function (response) {
+					console.log(response.data);	
+				});
+			},
+			remove: function () {
+				var toDelete = confirm("Delete " + this.post.content + "?");
+				if (toDelete) {
+					this.$emit('on-delete', this.post, this.index);
+				}
+			}
+
+		},
+
+		template: `
+		<div class="result">
+		<div class="content" v-if="!editing">
+		<p>{% raw %}{{ post.content }}{% endraw %}</p>
+		<button @click="edit">Edit</button>
+		<button @click="remove">Delete</button>
+		</div>
+		<div class="content-editing" v-if="editing">
+		<textarea cols="30" rows="10" v-model="editedContent"></textarea>
+		<button @click="save">Save</button>
+		<button @click="cancel">Cancel</button>
+		</div>
+		</div>
+		`
+
+	});
+
+	var app = new Vue({
+
+		el: "#app",
+
+		data: {
+
+			newOne: "",
+			results: [],
+			query: "",
+			queryTimeout: null
+
+		},
+
+		watch: {
+
+			query: function(newQuery) {
+
+				clearTimeout(this.timeout);
+				this.timeout = setTimeout(function () {
+					this.search(newQuery);
+				}.bind(this), 500);
+
+			}
+
+		},
+
+		methods: {
+
+			search: function (query) {
+				if (query) {
+					$this = this;
+					api.search(query).then(function (response) {
+						console.log(response.data);
+						$this.results = response.data.results;
+					});
+				} else {
+					this.results = [];
+				}
+			},
+
+			add: function () {
+				if (this.newOne) {
+					$this = this;
+					api.add({content: this.newOne}).then(function(response) {
+						console.log(response.data);
+						$this.results.push(response.data.post);
+					});
+					this.newOne = "";
+				}
+			},
+
+			onDeletePost: function (postToDelete, index) {
+				$this = this;
+				api.delete(postToDelete).then(function (response) {
+					console.log(response.data);
+					$this.results.splice(index, 1);
+				});
+			}
+
+		}
+
+	});
+
+	</script>
+
+</body>
+</html>
