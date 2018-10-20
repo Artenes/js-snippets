@@ -22,3 +22,6 @@ htmlcov/
 .coverage
 .coverage.*
 *,cover
+
+# Generated files
+/app.db

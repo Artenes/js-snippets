@@ -1,12 +1,7 @@
 from flask import render_template, jsonify, request
-from app import app
-
-results = [
-	{'id': 1, 'content': "Reachel is hot"},
-	{'id': 2, 'content': "Reachel is cute"},
-	{'id': 3, 'content': "Reachel is bald"},
-	{'id': 4, 'content': "Reachel is virgin"}
-]
+from app import app, db
+from app.models import Post
+from app.schemas import PostsSchema
 
 @app.route('/')
 def index():
@@ -14,36 +9,42 @@ def index():
 
 @app.route('/posts')
 def posts():
+	posts = Post.query.all()
+	schema = PostsSchema(many=True)
+	results = schema.dump(posts).data
 	query = request.args.get('q', '')
 	return jsonify({'results': results, 'search': query})
 
 @app.route('/posts', methods=['POST'])
 def create_post():
 	if request.json and 'content' in request.json:
-		post = {
-			'id': results[-1]['id'] + 1,
-			'content': request.json['content']
-		}
-		results.append(post)
-		return jsonify({'post': post}), 201
+		content = request.json['content']
+		post = Post(content=content)
+		db.session.add(post)
+		db.session.commit()
+		schema = PostsSchema()
+		return jsonify({'post': schema.dump(post).data}), 201
 	return jsonify({'error': 'No content provided'}), 400
 
-@app.route('/post/<int:post_id>', methods=['PUT'])
+@app.route('/post/<string:post_id>', methods=['PUT'])
 def update_post(post_id):
-	post = [post for post in results if post['id'] == post_id]
-	if len(post) == 0:
+	post = Post.query.get(post_id)
+	if not post:
 		return jsonify({'error': 'No post found'}), 404
 	if not request.json:
 		return jsonify({'error': 'No data to update'}), 400
 	if 'content' not in request.json:
 		return jsonify({'error': 'Invalid content'}), 400
-	post[0]['content'] = request.json.get('content', post[0]['content'])
-	return jsonify({'task': post[0]})
+	post.content = request.json.get('content', post.content)
+	db.session.commit()
+	schema = PostsSchema()
+	return jsonify({'task': schema.dump(post).data})
 
-@app.route('/post/<int:post_id>', methods=['DELETE'])
+@app.route('/post/<string:post_id>', methods=['DELETE'])
 def delete_post(post_id):
-	post = [post for post in results if post['id'] == post_id]
-	if len(post) == 0:
+	post = Post.query.get(post_id)
+	if not post:
 		return jsonify({'error': 'No post found'}), 404
-	results.remove(post[0])
+	db.session.delete(post)
+	db.session.commit()
 	return jsonify({'result': True})
