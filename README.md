@@ -1,4 +1,4 @@
-- swap to database
+- add search (with full text search)
 - add https://quilljs.com/
 - add bootstrap
 - add google login
