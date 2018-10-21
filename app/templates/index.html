@@ -41,7 +41,6 @@
 
 	.editor {
 		position: relative;
-		width: 100%;
 		height: 100%;
 	}
 
@@ -63,17 +62,48 @@
 		z-index: 2;
 	}
 
+	#editor-new {
+		border: solid 1px grey;
+	}
+
+	#add-button {
+		border: solid 1px grey;	
+		color: #E0E0DB;
+		background: transparent;
+		width: 100%;
+	}
+
+	#search-bar {
+		border: solid 1px grey;	
+		color: #E0E0DB;
+		background: transparent;
+		padding: 0.5rem;
+	}
+
+	#code-logo {
+		height: 2rem;
+		width: 2rem;
+	}
+	
+	.center-image {
+		display: flex;
+		justify-content: center;
+		margin-bottom: 1rem;
+	}
+
 	</style>
 </head>
 <body>
 
 	<div id="app">
-		<input type="text" v-model="query">
+		<input id="search-bar" type="text" v-model="query" placeholder="Search sinppets">
 
 		<result v-for="(result, index) in results" :post="result" :index="index" :key="result.id" @on-delete="onDeletePost"></result>
-
-		<textarea cols="30" rows="5" v-model="newOne"></textarea>
-		<button v-on:click="add">Add</button>
+		<div class="center-image">
+			<img id="code-logo" src="{{ url_for('static', filename='img/code-white.png') }}" alt="Code snippet">
+		</div>		
+		<div id="editor-new" class="editor" @keyup.ctrl.13="add"></div>
+		<button id="add-button" v-on:click="add">add snippet</button>
 	</div>
 	
 	<script src="{{ url_for('static', filename='ace/ace.js') }}" type="text/javascript" charset="utf-8"></script>
@@ -81,6 +111,39 @@
 	<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
 
 	<script>
+	
+	var EditorFactory = {
+
+		make: function(id, onChangeCallback) {
+			//create the editor into the element with the id of the post
+			var editor = window.ace.edit(id);
+
+			//initial configuration for the editor
+		    editor.setTheme("ace/theme/monokai"); //dark theme
+		    editor.getSession().setMode("ace/mode/javascript"); //use javascript highlight
+		    editor.getSession().setUseWorker(false); //ignore syntax errors
+		    
+		    //this makes the editor increse its size instead of making the scroll bars appear
+		    editor.setOptions({
+		    	maxLines: 1000
+		    });
+
+		    //https://stackoverflow.com/questions/11584061/automatically-adjust-height-to-contents-in-ace-cloud-9-editor
+		    //the height of the editor is the amount of lines times the height of the line
+		    //if there is a paste with too long lines, a line might have a height different form the
+		    //others because of line wrap. This trashes the calculation. To avoid this 
+		    //the wrap is disabled. The downside is the horizontal scroll bar that appears at the bottom
+		    //when there are longer lines.
+		    editor.getSession().setUseWrapMode(false);
+
+		    if (onChangeCallback) {
+		    	editor.on('change', onChangeCallback);
+		    }
+		    
+		    return editor;
+		}
+
+	}
 
 	var api = {
 
@@ -125,28 +188,7 @@
 			//get the current instance to avoid using bind()
 			var $this = this;
 
-			//create the editor into the element with the id of the post
-			this.editor = window.ace.edit("editor-" + this.post.id);
-
-			//initial configuration for the editor
-		    this.editor.setTheme("ace/theme/monokai"); //dark theme
-		    this.editor.getSession().setMode("ace/mode/javascript"); //use javascript highlight
-		    this.editor.getSession().setUseWorker(false); //ignore syntax errors
-		    
-		    //this makes the editor increse its size instead of making the scroll bars appear
-		    this.editor.setOptions({
-		    	maxLines: 1000
-		    });
-
-		    //https://stackoverflow.com/questions/11584061/automatically-adjust-height-to-contents-in-ace-cloud-9-editor
-		    //the height of the editor is the amount of lines times the height of the line
-		    //if there is a paste with too long lines, a line might have a height different form the
-		    //others because of line wrap. This trashes the calculation. To avoid this 
-		    //the wrap is disabled. The downside is the horizontal scroll bar that appears at the bottom
-		    //when there are longer lines.
-		    this.editor.getSession().setUseWrapMode(false);
-
-		    this.editor.on('change', function (delta) {
+			this.editor = EditorFactory.make("editor-" + this.post.id, function (delta) {
 		        //update the height of the editor
 		        $this.updateEditorHeight();
 
@@ -221,6 +263,7 @@
 
 		data: {
 
+			editor: null,
 			newOne: "",
 			results: [],
 			query: "",
@@ -241,6 +284,13 @@
 
 		},
 
+		mounted: function() {
+
+			this.editor = EditorFactory.make("editor-new");
+			this.clearEditor();
+
+		},
+
 		methods: {
 
 			search: function (query) {
@@ -256,14 +306,20 @@
 			},
 
 			add: function () {
-				if (this.newOne) {
+				var content = this.editor.getSession().getValue();
+				var realContent = content.replace(/\s/g, ''); //remove all white spaces, to avoid saving empty content
+				if (realContent) {
 					var $this = this;
-					api.add({content: this.newOne}).then(function(response) {
+					api.add({content: content}).then(function(response) {
 						console.log(response.data);
 						$this.results.push(response.data.post);
+						$this.clearEditor();
 					});
-					this.newOne = "";
 				}
+			},
+
+			clearEditor: function() {
+				this.editor.getSession().setValue("\n\n\n\n\n\n\n\n\n");
 			},
 
 			onDeletePost: function (postToDelete, index) {
