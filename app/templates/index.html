@@ -3,6 +3,10 @@
 <head>
 	<title>Vue js</title>
 	<style>
+	
+	html, body {
+		background: #272822;
+	}
 
 	#app {
 		display: flex;
@@ -18,9 +22,12 @@
 	}
 
 	.result {
+		position: relative;
 		border: solid 1px grey;
-		padding: 3em;
 		margin-bottom: 2em;
+		width: 100%;
+		height: 10rem;
+		box-shadow: 5px 5px 5px 1px #10100e;
 	}
 
 	textarea {
@@ -32,6 +39,30 @@
 		height: 100%;
 	}	
 
+	.editor {
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+
+	.status-editor-icon {
+		position: absolute;
+		right: 0;
+		top: 0;
+		width: 10px;
+		height: 10px;
+		z-index: 2;
+	}
+
+	.delete-editor-icon {
+		position: absolute;
+		right: 3px;
+		bottom: 3px;
+		width: 10px;
+		height: 10px;
+		z-index: 2;
+	}
+
 	</style>
 </head>
 <body>
@@ -39,27 +70,19 @@
 	<div id="app">
 		<input type="text" v-model="query">
 
-		<div v-for="(result, index) in results">
-			<result :post="result" :index="index" @on-delete="onDeletePost"></result>
-		</div>
+		<result v-for="(result, index) in results" :post="result" :index="index" :key="result.id" @on-delete="onDeletePost"></result>
 
 		<textarea cols="30" rows="5" v-model="newOne"></textarea>
 		<button v-on:click="add">Add</button>
 	</div>
-
+	
+	<script src="{{ url_for('static', filename='ace/ace.js') }}" type="text/javascript" charset="utf-8"></script>
 	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
 
 	<script>
 
 	var api = {
-
-		mockedResults: [
-		{id: 1, content: "Reachel is hot"},
-		{id: 2, content: "Reachel is cute"},
-		{id: 3, content: "Reachel is bald"},
-		{id: 4, content: "Reachel is virgin"},
-		],
 
 		search: function (query) {
 			return axios.get('/posts?q='+query);
@@ -83,33 +106,96 @@
 
 		props: ['post', 'index'],
 
-		data() {
+		data: function () {
 			return {
-				editing: false,
-				editedContent: ""
+				saveTimeout: null,
+				delayToSaveContent: 2000, //2 seconds
+				editor: Object,
+				editorHeight: 0,
+				saving: false,
+				saved: false,
+				error: false
 			};
+		},
+
+		mounted: function () {
+
+			console.log(this.post.content);
+
+			//get the current instance to avoid using bind()
+			var $this = this;
+
+			//create the editor into the element with the id of the post
+			this.editor = window.ace.edit("editor-" + this.post.id);
+
+			//initial configuration for the editor
+		    this.editor.setTheme("ace/theme/monokai"); //dark theme
+		    this.editor.getSession().setMode("ace/mode/javascript"); //use javascript highlight
+		    this.editor.getSession().setUseWorker(false); //ignore syntax errors
+		    
+		    //this makes the editor increse its size instead of making the scroll bars appear
+		    this.editor.setOptions({
+		    	maxLines: 1000
+		    });
+
+		    //https://stackoverflow.com/questions/11584061/automatically-adjust-height-to-contents-in-ace-cloud-9-editor
+		    //the height of the editor is the amount of lines times the height of the line
+		    //if there is a paste with too long lines, a line might have a height different form the
+		    //others because of line wrap. This trashes the calculation. To avoid this 
+		    //the wrap is disabled. The downside is the horizontal scroll bar that appears at the bottom
+		    //when there are longer lines.
+		    this.editor.getSession().setUseWrapMode(false);
+
+		    this.editor.on('change', function (delta) {
+		        //update the height of the editor
+		        $this.updateEditorHeight();
+
+		        //save the content after some time no change was made
+		        var content = $this.editor.getValue();
+		        clearTimeout($this.saveTimeout);
+				$this.saveTimeout = setTimeout(function () {
+					$this.save(content);
+				}, $this.delayToSaveContent);
+		    });
+
+		    //this is to define the height of the editor
+		    //the 100ms delay is arbitrary. Just running the method here
+		    //was not working. Tried with timeout and worked.
+		    //The delay can be even 10ms that it would work.
+		    //I dunno why do we have to wait to run this method.
+		    setTimeout(function () {
+				$this.updateEditorHeight();		    	
+		    }, 10);
 		},
 
 		methods: {
 
-			edit: function () {
-				this.editedContent = this.post.content;
-				this.editing = true;
+			updateEditorHeight: function() {
+				var doc = this.editor.getSession().getDocument();
+				var lineHeight = this.editor.renderer.lineHeight;
+				var amountOfLines = doc.getLength();
+				this.editorHeight = lineHeight * amountOfLines;
 			},
-			cancel: function () {
-				this.editedContent = "";
-				this.editing = false;
-			},
-			save: function () {
-				this.post.content = this.editedContent;
-				this.editedContent = "";
-				this.editing = false;
-				api.update(this.post).then(function (response) {
-					console.log(response.data);	
+
+			save: function (content) {
+				var $this = this;
+				$this.saving = true;
+				$this.saved = false;
+				$this.error = false;
+				api.update({id: $this.post.id, content: content})
+				.then(function (response) {
+					$this.saving = false;
+					$this.saved = true;
+					$this.error = false;
+				}).catch(function() {
+					$this.saving = false;
+					$this.saved = false;
+					$this.error = true;
 				});
 			},
+
 			remove: function () {
-				var toDelete = confirm("Delete " + this.post.content + "?");
+				var toDelete = confirm("Delete this snippet?");
 				if (toDelete) {
 					this.$emit('on-delete', this.post, this.index);
 				}
@@ -118,17 +204,12 @@
 		},
 
 		template: `
-		<div class="result">
-		<div class="content" v-if="!editing">
-		<p>{% raw %}{{ post.content }}{% endraw %}</p>
-		<button @click="edit">Edit</button>
-		<button @click="remove">Delete</button>
-		</div>
-		<div class="content-editing" v-if="editing">
-		<textarea cols="30" rows="10" v-model="editedContent"></textarea>
-		<button @click="save">Save</button>
-		<button @click="cancel">Cancel</button>
-		</div>
+		<div class="result" v-bind:style="{ height: editorHeight + 'px' }">
+		<img v-if="saving" src="{{ url_for('static', filename='img/loading-white.gif') }}" alt="Loading icon" class="status-editor-icon"/>
+		<img v-if="saved" src="{{ url_for('static', filename='img/done-white.png') }}" alt="Done icon" class="status-editor-icon" />
+		<img v-if="error" src="{{ url_for('static', filename='img/error-white.png') }}" alt="Error icon" class="status-editor-icon" />
+		<img @click="remove" src="{{ url_for('static', filename='img/x-pink.png') }}" alt="Delete icon" class="delete-editor-icon" />
+		<div :id="'editor-'+post.id" class="editor">{% raw %}{{ post.content }}{% endraw %}</div>
 		</div>
 		`
 
@@ -164,7 +245,7 @@
 
 			search: function (query) {
 				if (query) {
-					$this = this;
+					var $this = this;
 					api.search(query).then(function (response) {
 						console.log(response.data);
 						$this.results = response.data.results;
@@ -176,7 +257,7 @@
 
 			add: function () {
 				if (this.newOne) {
-					$this = this;
+					var $this = this;
 					api.add({content: this.newOne}).then(function(response) {
 						console.log(response.data);
 						$this.results.push(response.data.post);
@@ -186,10 +267,11 @@
 			},
 
 			onDeletePost: function (postToDelete, index) {
-				$this = this;
+				var $this = this;
 				api.delete(postToDelete).then(function (response) {
 					console.log(response.data);
-					$this.results.splice(index, 1);
+					console.log("deleting index " + index);
+					$this.$delete($this.results, index);
 				});
 			}
 
