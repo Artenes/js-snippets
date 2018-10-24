@@ -9,10 +9,10 @@ def index():
 
 @app.route('/posts')
 def posts():
-	posts = Post.query.all()
+	query = request.args.get('q', '')
+	posts = Post.query.filter(Post.content.like("%"+query+"%")).all()
 	schema = PostsSchema(many=True)
 	results = schema.dump(posts).data
-	query = request.args.get('q', '')
 	return jsonify({'results': results, 'search': query})
 
 @app.route('/posts', methods=['POST'])
