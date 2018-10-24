@@ -18,6 +18,7 @@ Web app made with python (back-end) and vue-js (front-end) to manage a list of s
 - The queries to the database are made using SQL LIKE statements, so queries might be slow to bigger snippets.
 - Only shows highlight for Javascript (but the Ace editor supports other languages too).
 - There is no users. This app is more appropriate for local and personal use.
+- It only uses dark (monokai) theme.
 
 # Set up
 
