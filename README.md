@@ -29,7 +29,7 @@ Web app made with python (back-end) and vue-js (front-end) to manage a list of s
 Clone the repository.
 
 ```
-git clone git@github.com:Artenes/search.git
+git clone git@github.com:Artenes/js-snippets.git
 ```
 
 Enter in the cloned directory.
