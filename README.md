@@ -2,18 +2,29 @@
 
 Web app made with python (back-end) and vue-js (front-end) to manage a list of snippets in javascript.
 
+![Usage](docs/usage.gif)
+
 # Features
 - Add snippets in Javascript (use ctrl+Enter to add one)
 - Remove snippets
-- Edit snippets in place
+- Edit snippets in place (it uses auto save)
 - Search for snippets
+- Snippets expand in height according to number of lines (no scrollbars)
 
-# Requirements
+# Notes
+- [Flask](http://flask.pocoo.org/) is used in the back-end to manage the requests
+- The back-end serves a html page that has all the Vue.js code to run the app (no vue-cli used)
+- [Ace editor](https://ace.c9.io/) is used to display the snippets
+- The queries to the database are made using SQL LIKE statements, so queries might be slow to bigger snippets
+- Only shows highlight for Javascript (but the Ace editor supports other languages too)
+- There is no users. This app is more appropriate for local and personal use.
+
+# Set up
+
+## Requirements
 
 - Have python 3 installed
 - Have pip installed
-
-# Set up
 
 Clone the repository
 
@@ -60,3 +71,7 @@ Open the browser
 ```
 python -mwebbrowser http://localhost:5000
 ```
+
+# License
+
+MIT License
