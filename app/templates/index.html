@@ -182,9 +182,6 @@
 		},
 
 		mounted: function () {
-
-			console.log(this.post.content);
-
 			//get the current instance to avoid using bind()
 			var $this = this;
 
@@ -297,7 +294,6 @@
 				if (query) {
 					var $this = this;
 					api.search(query).then(function (response) {
-						console.log(response.data);
 						$this.results = response.data.results;
 					});
 				} else {
@@ -311,7 +307,6 @@
 				if (realContent) {
 					var $this = this;
 					api.add({content: content}).then(function(response) {
-						console.log(response.data);
 						$this.results.push(response.data.post);
 						$this.clearEditor();
 					});
@@ -325,8 +320,6 @@
 			onDeletePost: function (postToDelete, index) {
 				var $this = this;
 				api.delete(postToDelete).then(function (response) {
-					console.log(response.data);
-					console.log("deleting index " + index);
 					$this.$delete($this.results, index);
 				});
 			}
